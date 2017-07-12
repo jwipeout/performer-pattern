@@ -46,32 +46,63 @@ The example app uses this setup and is a great resource to reference.
 
 Performers go in a new directory in ```app/performers```. You must create this directory and add any performers that you intend to use in there. 
 
-The __Rails Helpers__ are not automatically included in modules. Most likely you will need the helpers at some point since performers are used for view methods. To include the helpers in any performer that is created we will add this to an initializer. This allows you to use the helpers in performer instance or class methods.
+The __Rails Helpers__ are not automatically included in modules. Most likely you will need the helpers at some point since performers are used for view methods. To include all the helpers in any performer that is created we will add this to an initializer. 
+
+This allows you to use all the helpers in performer instance or class methods. _BE AWARE_ that this brings in a lot of methods that could potentially clash with your performer methods. 
 
 ```ruby
 # config/initializers/performers.rb
 
-Dir.glob("#{Rails.root}/app/performers/*.rb") do |file|
-  performer_module_name = file.split('/').last.split('.').first.classify.constantize
+def constanize_file_name(file)
+  file.split('/').last.split('.').first.classify.constantize
+end
 
-  performer_module_name.include ActionView::Helpers
-  performer_module_name::ClassMethods.include ActionView::Helpers
+def include_modules(performer_module_constant, module_to_include)
+  performer_module_constant.include module_to_include
+  performer_module_constant::ClassMethods.include module_to_include
+end
+
+Dir.glob("#{Rails.root}/app/performers/*.rb") do |performer_file|
+  performer_module_name = constanize_file_name(performer_file)
+  include_modules(performer_module_name, ActionView::Helpers)
+
+  Dir.glob("#{Rails.root}/app/helpers/*.rb") do |helper_file|
+    custom_helper = constanize_file_name(helper_file)
+    include_modules(performer_module_name, custom_helper)
+  end
 end
 ```
 
-If you are using __Rspec__ you can also include the rails helpers into performer specs.
+### RSpec
+
+If you are using __Rspec__ you can also include the rails helpers into performer specs. Add this file to your spec/support, then require it in your rails_helper.rb
 
 ```ruby
-# spec/rails_helper.rb
+# spec/support/performers.rb
 
 RSpec.configure do |config|
+  # Adding helper modules to peformers
   performer_modules = [
     ActionView::Helpers,
     Rails.application.routes.url_helpers
   ]
+
+  Dir.glob("#{Rails.root}/app/helpers/*.rb") do |helper_file|
+    custom_helper = helper_file.split('/').last.split('.').first.classify.constantize
+    performer_modules << custom_helper
+  end
+
   performer_modules.each { |rails_module| config.include rails_module, type: :performer }
 end
 ```
+
+```ruby
+# spec/rails_helper.rb
+
+require 'support/performers'
+```
+
+### Rails Test Unit
 
 If you are using __Rails Test Unit__ you can include helpers into each performer test.
 
@@ -80,6 +111,7 @@ require 'test_helper'
 
 class ArticlePerformerTest < ActiveSupport::TestCase
   include ActionView::Helpers
+  include ArticlesHelper
   include Rails.application.routes.url_helpers
 
   setup do
@@ -120,6 +152,10 @@ module ArticlePerformer
 
   def articles_link
     link_to 'Articles', Rails.application.routes.url_helpers.articles_path
+  end
+  
+  def custom_helper_method
+    custom_article_helper_method
   end
 end
 ```
