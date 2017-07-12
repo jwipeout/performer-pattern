@@ -23,5 +23,11 @@ RSpec.describe Article, type: :performer do
         expect(article.articles_link).to eq(link_to 'Articles', articles_path)
       end
     end
+
+    describe '#custom_helper_method' do
+      it 'returns custom articles helper method' do
+        expect(article.custom_helper_method).to eq(custom_article_helper_method)
+      end
+    end
   end
 end

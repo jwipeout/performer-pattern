@@ -16,4 +16,8 @@ module ArticlePerformer
   def articles_link
     link_to 'Articles', Rails.application.routes.url_helpers.articles_path
   end
+
+  def custom_helper_method
+    custom_article_helper_method
+  end
 end
