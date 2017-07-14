@@ -89,7 +89,7 @@ end
 If you are using __Rspec__ you can access the helpers the same way that you do with your performer module. 
 
 ```ruby
-# spec/support/performers.rb
+# spec/performers/article_performer_spec.rb
 
 require 'rails_helper'
 
