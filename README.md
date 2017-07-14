@@ -46,53 +46,83 @@ The example app uses this setup and is a great resource to reference.
 
 Performers go in a new directory in ```app/performers```. You must create this directory and add any performers that you intend to use in there. 
 
-The __Rails Helpers__ are not automatically included in modules. Most likely you will need the helpers at some point since performers are used for view methods. To include all the helpers in any performer that is created we will add this to an initializer. 
+The __Rails Helpers__ are not automatically included in modules. Most likely you will need the helpers at some point since performers are used for view methods. Including these modules into the performer modules is a  big pain. The pain continues when you end up having to include the same modules into your tests as well. 
 
-This allows you to use all the helpers in performer instance or class methods. _BE AWARE_ that this brings in a lot of methods that could potentially clash with your performer methods. 
+Creating a central class where helper methods can live seemed like a nice solution. No more including modules all over the place. Include the helper modules you would like to use by extending the Helper class. This allows you to access them as class methods. Also we don't have to worry about naming collisions because they are scoped under the Helper class name. 
+
+Add this file to the directory app/support. If you are going to use the Rails routes helpers prepend them with routes. Ex. ```Helper.routes.root_path```
 
 ```ruby
-# config/initializers/performers.rb
+# app/support/helper.rb
 
-def constanize_file_name(file)
-  file.split('/').last.split('.').first.classify.constantize
-end
+class Helper
+  extend ActionView::Helpers::UrlHelper
+  extend ActionView::Helpers::TagHelper
 
-def include_modules(performer_module_constant, module_to_include)
-  performer_module_constant.include module_to_include
-  performer_module_constant::ClassMethods.include module_to_include
-end
+  class << self
+    def render(**args)
+      ApplicationController.render(args)
+    end
 
-Dir.glob("#{Rails.root}/app/performers/*.rb") do |performer_file|
-  performer_module_name = constanize_file_name(performer_file)
-  include_modules(performer_module_name, ActionView::Helpers)
+    def routes
+      Rails.application.routes.url_helpers
+    end
+  end
 
-  Dir.glob("#{Rails.root}/app/helpers/*.rb") do |helper_file|
-    custom_helper = constanize_file_name(helper_file)
-    include_modules(performer_module_name, custom_helper)
+  class LoadCustomHelpers
+    class << self
+      def load_custom_helpers
+        Dir.glob("#{Rails.root}/app/helpers/*.rb") do |helper_file|
+          custom_helper = helper_file.split('/').last.split('.').first.classify.constantize
+          Helper.extend custom_helper
+        end
+      end
+    end
+
+    load_custom_helpers
   end
 end
 ```
 
 ### RSpec
 
-If you are using __Rspec__ you can also include the rails helpers into performer specs. Add this file to your spec/support, then require it in your rails_helper.rb
+If you are using __Rspec__ you can access the helpers the same way that you do with your performer module. 
 
 ```ruby
 # spec/support/performers.rb
 
-RSpec.configure do |config|
-  # Adding helper modules to peformers
-  performer_modules = [
-    ActionView::Helpers,
-    Rails.application.routes.url_helpers
-  ]
+require 'rails_helper'
 
-  Dir.glob("#{Rails.root}/app/helpers/*.rb") do |helper_file|
-    custom_helper = helper_file.split('/').last.split('.').first.classify.constantize
-    performer_modules << custom_helper
+RSpec.describe Article, type: :performer do
+  let(:article) { FactoryGirl.create(:article) }
+
+  describe 'Class Methods' do
+    describe '.articles_price' do
+      it 'returns articles price' do
+        expect(Article.articles_price).to eq(Helper.number_to_currency(9.99))
+      end
+    end
   end
 
-  performer_modules.each { |rails_module| config.include rails_module, type: :performer }
+  describe 'Instance Methods' do
+    describe '#author_first_name' do
+      it 'returns authors first name' do
+        expect(article.author_first_name).to eq(article.author.split.first)
+      end
+    end
+
+    describe '#articles_link' do
+      it 'returns articles html link' do
+        expect(article.articles_link).to eq(Helper.link_to 'Articles', Helper.routes.articles_path)
+      end
+    end
+
+    describe '#custom_helper_method' do
+      it 'returns custom articles helper method' do
+        expect(article.custom_helper_method).to eq(Helper.custom_article_helper_method)
+      end
+    end
+  end
 end
 ```
 
@@ -100,32 +130,6 @@ end
 # spec/rails_helper.rb
 
 require 'support/performers'
-```
-
-### Rails Test Unit
-
-If you are using __Rails Test Unit__ you can include helpers into each performer test.
-
-```ruby
-require 'test_helper'
-
-class ArticlePerformerTest < ActiveSupport::TestCase
-  include ActionView::Helpers
-  include ArticlesHelper
-  include Rails.application.routes.url_helpers
-
-  setup do
-    @article = articles(:one)
-  end
-
-  test '.articles_price' do
-    assert_equal(Article.articles_price, number_to_currency(9.99))
-  end
-
-  test "#articles_link" do
-    assert_equal(@article.articles_link, (link_to 'Articles', articles_path))
-  end
-end
 ```
 
 ## Create Performers
@@ -142,7 +146,7 @@ module ArticlePerformer
 
   module ClassMethods
     def articles_price
-      number_to_currency(9.99)
+      Helper.number_to_currency(9.99)
     end
   end
 
@@ -151,11 +155,11 @@ module ArticlePerformer
   end
 
   def articles_link
-    link_to 'Articles', Rails.application.routes.url_helpers.articles_path
+    Helper.link_to 'Articles', Helper.routes.articles_path
   end
-  
+
   def custom_helper_method
-    custom_article_helper_method
+    Helper.custom_article_helper_method
   end
 end
 ```
@@ -184,8 +188,6 @@ If you plan on using route helpers in your Performer you must access it like thi
 Every decision made comes with ups and downs. People have different preferences and that is what makes our communtity great.
 
 Improving the code is always welcomed! Send a pull request.
-
-I am speficially looking for a solution to the include of the ```Rails.application.routes.url_helpers``` module into our Performer module.
 
 If you find this pattern useful spread the word or write a blog post about it.
 
