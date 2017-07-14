@@ -5,7 +5,7 @@ module ArticlePerformer
 
   module ClassMethods
     def articles_price
-      number_to_currency(9.99)
+      Helper.number_to_currency(9.99)
     end
   end
 
@@ -14,10 +14,10 @@ module ArticlePerformer
   end
 
   def articles_link
-    link_to 'Articles', Rails.application.routes.url_helpers.articles_path
+    Helper.link_to 'Articles', Helper.routes.articles_path
   end
 
   def custom_helper_method
-    custom_article_helper_method
+    Helper.custom_article_helper_method
   end
 end
