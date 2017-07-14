@@ -181,7 +181,7 @@ If you plan on using class methods, don't forget to add the  ```self.included```
 
 ### Route helpers
 
-If you plan on using route helpers in your Performer you must access it like this ```Rails.application.routes.url_helpers.articles_path```. There is a problem with including the url_helpers module into the Performer module currently.
+If you plan on using route helpers in your Performer you must access it like this ```Helper.routes.articles_path```.
 
 # Contributing
 
