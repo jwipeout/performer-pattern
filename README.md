@@ -50,36 +50,37 @@ The __Rails Helpers__ are not automatically included in modules. Most likely you
 
 Creating a central class where helper methods can live seemed like a nice solution. No more including modules all over the place. Include the helper modules you would like to use by extending the Helper class. This allows you to access them as class methods. Also we don't have to worry about naming collisions because they are scoped under the Helper class name. 
 
-Add this file to the directory app/support. If you are going to use the Rails routes helpers prepend them with routes. Ex. ```Helper.routes.root_path```
+Add this file to the directory app/support. Ex. ```Helper.number_to_currency(9.99)```
 
 ```ruby
 # app/support/helper.rb
 
 class Helper
-  extend ActionView::Helpers::UrlHelper
-  extend ActionView::Helpers::TagHelper
-
-  class << self
-    def render(**args)
-      ApplicationController.render(args)
-    end
-
-    def routes
-      Rails.application.routes.url_helpers
-    end
+  Dir.glob("#{Rails.root}/app/helpers/*.rb") do |helper_file|
+    extend helper_file.split('/').last.split('.').first.classify.constantize
   end
 
-  class LoadCustomHelpers
-    class << self
-      def load_custom_helpers
-        Dir.glob("#{Rails.root}/app/helpers/*.rb") do |helper_file|
-          custom_helper = helper_file.split('/').last.split('.').first.classify.constantize
-          Helper.extend custom_helper
-        end
+  @routes = Rails.application.routes.url_helpers
+  @action_view = ActionView::Base.new('app/views')
+
+  class << self
+    attr_reader :routes, :action_view
+
+    def method_missing(method, *args, &block)
+      if routes.respond_to?(method)
+        routes.send(method, *args, &block)
+      elsif action_view.respond_to?(method)
+        action_view.send(method, *args, &block)
+      else
+        super
       end
     end
 
-    load_custom_helpers
+    def respond_to_missing?(method, include_private = false)
+      routes.respond_to?(method, include_private) ||
+        action_view.respond_to?(method, include_private) ||
+        super
+    end
   end
 end
 ```
@@ -178,10 +179,6 @@ end
 Notice that you can add __Class and Instance Methods__ in the performer. Instance methods are placed inside of the class. Class Methods go inside the module called ```ClassMethods```.
 
 If you plan on using class methods, don't forget to add the  ```self.included``` hook that extends the class that the module gets included into.
-
-### Route helpers
-
-If you plan on using route helpers in your Performer you must access it like this ```Helper.routes.articles_path```.
 
 # Contributing
 
