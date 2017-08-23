@@ -48,9 +48,15 @@ Performers go in a new directory in ```app/performers```. You must create this d
 
 The __Rails Helpers__ are not automatically included in modules. Most likely you will need the helpers at some point since performers are used for view methods. Including these modules into the performer modules is a  big pain. The pain continues when you end up having to include the same modules into your tests as well. 
 
-Creating a central class where helper methods can live seemed like a nice solution. No more including modules all over the place. Include the helper modules you would like to use by extending the Helper class. This allows you to access them as class methods. Also we don't have to worry about naming collisions because they are scoped under the Helper class name. 
+Creating a central class where helper methods can live seemed like a nice solution. No more including modules all over the place. Include the helper modules you would like to use by extending the Helper class. This allows you to access them as class methods. Also we don't have to worry about naming collisions because they are scoped under the Helper class name.
 
-Add this file to the directory app/support. Ex. ```Helper.number_to_currency(9.99)```
+You then can access the helper method like this
+
+```ruby
+Helper.number_to_currency(9.99)
+```
+
+Use the [Rails Anywhere Helper Gem](https://github.com/jwipeout/rails-helper-anywhere) or add this file to the directory app/support.
 
 ```ruby
 # app/support/helper.rb
